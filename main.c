@@ -34,8 +34,10 @@ struct movie *createMovie(char *line){
 	return currMovie;
 }
 
+//returns list or NULL if fopen fail
 struct movie *readFile(char *filePath){
 	FILE *movieFile = fopen(filePath, "r");
+	//test to ensure filePath is valid
 	if(movieFile == NULL)
 		return NULL;
 
@@ -45,7 +47,7 @@ struct movie *readFile(char *filePath){
 
 	struct movie *head = NULL;
 	struct movie *tail = NULL;
-
+	//Ignore first line because that is just headers
 	nread = getline(&Line, &len, movieFile);
 	while ((nread = getline(&Line, &len, movieFile)) != -1){
 		struct movie *newNode = createMovie(Line);
@@ -64,8 +66,6 @@ struct movie *readFile(char *filePath){
 
 void year_list(struct movie *list){
 	printf("Enter the year for which you want to see movies: ");
-	//char inputbuffer[10];
-	//fgets(inputbuffer, 10, stdin);
 	int year_input;
 	scanf("%4d", &year_input);
 	bool noMovies = true;
@@ -83,7 +83,8 @@ void year_list(struct movie *list){
 
 void ratings_list(struct movie *list){
 	//indexed as year - 1900 (min year)
-	struct movie* greatest[1023] = {NULL, };
+	//because max year is 2021, the max index is 121
+	struct movie* greatest[122] = {NULL, };
 	int index;
 	while(list != NULL){
 		index = list->year - 1900;
@@ -92,7 +93,7 @@ void ratings_list(struct movie *list){
 		}
 		list = list->next;
 	}
-	for(int i = 0; i < 1023; i++){
+	for(int i = 0; i < 122; i++){
 		if(greatest[i] == NULL)
 			continue;
 		printf("%d %.1f %s \n", greatest[i]->year, greatest[i]->rating_value, greatest[i]->title);
@@ -102,17 +103,26 @@ void ratings_list(struct movie *list){
 void language_list(struct movie *list){
 	printf("Enter the language for which you want to see movies: ");
 	char inputbuffer[22];
-	char *language_input = NULL;
+	//Used to avoid finding substring that is part of a language (ex 'Eng')
+	//Language is stored [English;French...German], so concat ';' and ']'
+	//ensures strstr doesn't find a substring that isn't the full language name
+	char *language_input_semi = NULL;
+	char *language_input_brac = NULL;
 	char *result;
-	//fgets(inputbuffer, 20, stdin);
+	char *result2;
 	scanf("%20s", inputbuffer);
-	language_input = calloc(strlen(inputbuffer) + 1, sizeof(char));
-	strcpy(language_input, inputbuffer);
-	//strcat(inputbuffer, ";");
+	language_input_semi = calloc(strlen(inputbuffer) + 2, sizeof(char)); 
+	language_input_brac = calloc(strlen(inputbuffer) + 2, sizeof(char));
+	strcpy(language_input_semi, inputbuffer);
+	strcpy(language_input_brac, inputbuffer);
+	strcat(language_input_semi, ";");
+	strcat(language_input_brac, "]");
 	bool noMovies = true;
 	while(list != NULL){
 		//if input is in languages string
-		if((result = strstr(list->languages, inputbuffer)) != NULL){
+		result = strstr(list->languages, language_input_semi);
+		result2 = strstr(list->languages, language_input_brac);
+		if(result != NULL || result2 != NULL){
 			noMovies = false;
 			printf("%s \n", list->title);
 		}
@@ -120,7 +130,8 @@ void language_list(struct movie *list){
 	}
 	if(noMovies)
 		printf("No data about movies released in %s \n", inputbuffer);
-	free(language_input);
+	free(language_input_semi);
+	free(language_input_brac);
 }
 
 void input_loop(struct movie *list){
@@ -135,12 +146,8 @@ void input_loop(struct movie *list){
 		printf("4. Exit from the program \n");
 		printf("\n");
 		printf("Enter a choice from 1 to 4: ");
-		//get input
-		//memset(inputbuffer, 0, sizeof(inputbuffer));
-		//input = -1;
 		scanf("%1d", &input);
-		//while((getchar()) != ' ');
-		//input = atoi(inputbuffer);
+		//choose action based on input
 		switch(input){
 			case 1:
 				//specify year
@@ -155,6 +162,7 @@ void input_loop(struct movie *list){
 				language_list(list);
 				break;
 			case 4:
+				//set flag false to end while loop
 				continue_flag = false;
 				break;
 			default:
@@ -163,6 +171,7 @@ void input_loop(struct movie *list){
 	}
 }
 
+//test function to ensure movie list is parsed correctly
 void print_movie_list(struct movie *list){
 	while(list != NULL){
 		printf("%s %d %s %.1f \n", list->title, list->year, list->languages, list->rating_value);
@@ -171,13 +180,12 @@ void print_movie_list(struct movie *list){
 }
 
 int main(int argc, char * argv[]){
-
+	//check for file argument
 	if(argc < 2){
 		printf("Provide name of file \n");
 		printf("Example: ./movies movie.csv \n");
 		return EXIT_FAILURE;
 	}
-//	printf("reading file");
 	struct movie *list = readFile(argv[1]);
 	if(list == NULL){
 		printf("File read fail \n");
@@ -189,10 +197,7 @@ int main(int argc, char * argv[]){
 		numMovies = numMovies + 1;
 		movieptr = movieptr->next;
 	}
-//	printf("finished reading file");
-//	print_movie_list(list);
    printf("Processed file %s and parsed data for %d movies \n", argv[1], numMovies);
-	//Processed file [filename] and parsed data for [n] movies
 	input_loop(list);
 	//clean up linked list
 	struct movie *last;
