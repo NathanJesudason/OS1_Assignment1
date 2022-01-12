@@ -204,6 +204,8 @@ int main(int argc, char * argv[]){
 	while(list != NULL){
 		last = list;
 		list = list->next;
+		free(last->languages);
+		free(last->title);
 		free(last);
 	}
 	return EXIT_SUCCESS;
